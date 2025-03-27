@@ -1,14 +1,39 @@
-# Python-generated files
+# .gitignore
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+
+.env
+*.env
+env/
+venv/
+ENV/
+env.bak
+venv.bak
+
+.vscode/
+.idea/
 build/
 dist/
-wheels/
-*.egg-info
+*.egg-info/
+*.so
+*.dll# .gitignore
+__pycache__/
+*.py[cod]
+*$py.class
 
-# Virtual environments
-.venv
-
-# milvus volumes
-volumes/
 .env
+*.env
+env/
+venv/
+ENV/
+env.bak
+venv.bak
+
+.vscode/
+.idea/
+build/
+dist/
+*.egg-info/
+*.so
+*.dll
