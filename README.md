@@ -7,3 +7,4 @@ mostly an experiment to see how fast I can index a large number of files and sea
 parser - TODO: recheck this condition, we might also need small functions for indexing purposes they could help in rag maybe
 parser - NOTE: maybe dynamic imports?, will have to check later
 models - TODO: i'll have to rethink about this, requires can be also called inside functions (lazy loading)
+parser- NOTE: for now we don't filter out small functions
