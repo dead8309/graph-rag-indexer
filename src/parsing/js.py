@@ -2,6 +2,7 @@ import os
 from typing import Any, Dict, Set, Tuple
 from tree_sitter import Language, Node, Parser, Query
 from tree_sitter_javascript import language
+from parsing.queries import CALL_QUERY, FUNCTION_QUERY, REQUIRE_QUERY, VARIABLE_QUERY
 import src.config as config
 import json
 
@@ -112,43 +113,10 @@ class JavaScriptParser:
         return aggregated_snippets
 
     def _compile_queries(self):
-        _func_query = """
-        [
-          (function_declaration name: (identifier) @func.name)
-          (variable_declarator
-            name: (identifier) @func.name
-            value: [ (function_expression) (arrow_function) ]
-          )
-          (expression_statement
-            (assignment_expression
-              left: (member_expression property: (property_identifier) @func.name)
-              right: [ (function_expression) (arrow_function) ]
-            )
-          )
-          (method_definition name: (property_identifier) @func.name)
-        ] @function
-        """
-
-        self._func_query: Query = self._language.query(_func_query)
-
-        _call_query = """
-        (call_expression
-          function: [
-            (identifier) @call.name
-            (member_expression property: (property_identifier) @call.name)
-          ]
-        )
-        """
-        self.call_query: Query = self._language.query(_call_query)
-
-        _require_query = """
-        (call_expression
-           function: (identifier) @require_func
-           arguments: (arguments (string (string_fragment) @require_path))
-           (#eq? @require_func "require")
-        )
-        """
-        self.require_query: Query = self._language.query(_require_query)
+        self._func_query: Query = self._language.query(FUNCTION_QUERY)
+        self.call_query: Query = self._language.query(CALL_QUERY)
+        self.require_query: Query = self._language.query(REQUIRE_QUERY)
+        self.variable_query: Query = self._language.query(VARIABLE_QUERY)
 
     def _extract_data_from_node(
         self, root_node: Node, code_text: str
