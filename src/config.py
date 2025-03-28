@@ -22,4 +22,8 @@ MIN_FUNCTION_LENGTH = 25
 if not NEO4J_PASSWORD:
     raise ValueError("NEO4J_PASSWORD is required")
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
 print("Config loaded")
