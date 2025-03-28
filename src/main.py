@@ -1,25 +1,15 @@
 from pymilvus import connections
-from dotenv import load_dotenv
 from neo4j import GraphDatabase
-import os
 
-
-load_dotenv()
-MILVUS_HOST = os.getenv("MILVUS_HOST", "localhost")
-MILVUS_PORT = os.getenv("MILVUS_PORT", 19530)
-MILVUS_ALIAS = os.getenv("MILVUS_ALIAS", "default")
-
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password123")
+from src import config
 
 
 def connect_milvus():
     try:
         connections.connect(
-            alias=MILVUS_ALIAS,
-            host=MILVUS_HOST,
-            port=MILVUS_PORT,
+            alias=config.MILVUS_ALIAS,
+            host=config.MILVUS_HOST,
+            port=config.MILVUS_PORT,
         )
         print("milvus connected")
     except Exception as e:
@@ -29,7 +19,13 @@ def connect_milvus():
 def connect_neo4j():
     driver = None
     try:
-        driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+        if not config.NEO4J_PASSWORD:
+            raise ValueError("NEO4J_PASSWORD is required")
+
+        driver = GraphDatabase.driver(
+            config.NEO4J_URI,
+            auth=(config.NEO4J_USER, config.NEO4J_PASSWORD),
+        )
         driver.verify_connectivity()
         print("neo4j connected")
         return driver
