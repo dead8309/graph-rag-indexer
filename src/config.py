@@ -13,6 +13,12 @@ NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 
+# tree-sitter grammar
+JS_GRAMMAR_PATH = "tree-sitter-javascript"
+
+# codebase for indexing
+CODEBASE_DIR = os.path.join("samples_typescript", "express_mongodb")
+
 if not NEO4J_PASSWORD:
     raise ValueError("NEO4J_PASSWORD is required")
 

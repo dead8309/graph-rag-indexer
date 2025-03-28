@@ -37,3 +37,5 @@ dist/
 *.egg-info/
 *.so
 *.dll
+
+volumes/
