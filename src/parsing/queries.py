@@ -45,19 +45,19 @@ REQUIRE_QUERY = """
 """
 
 VARIABLE_QUERY = """
-(lexical_declaration
-      kind: @variable.kind ;; const, let
-      (variable_declarator
-         name: (identifier) @variable.name
-         value: (_)? @variable.value
-      )
-    ) @variable.declaration
+[
+  (lexical_declaration
+    (variable_declarator
+      name: (identifier) @variable.name
+      value: (_)? @variable.value
+    )
+  ) @variable.declaration
 
-    (variable_declaration
-       kind: @variable.kind ;; var
-      (variable_declarator
-         name: (identifier) @variable.name
-         value: (_)? @variable.value
-      )
-    ) @variable.declaration
+  (variable_declaration
+    (variable_declarator
+      name: (identifier) @variable.name
+      value: (_)? @variable.value
+    )
+  ) @variable.declaration
+]
 """
