@@ -2,6 +2,7 @@ from pymilvus import connections
 from neo4j import GraphDatabase
 
 from src import config
+from src.parsing.js import JavaScriptParser
 
 
 def connect_milvus():
@@ -33,10 +34,10 @@ def connect_neo4j():
         print("failed to connect to neo4j:", e)
 
 
-def main():
+if __name__ == "__main__":
+    js_parser = JavaScriptParser()
+    tree = js_parser.parse("const x = 1; console.log(x);")
+    print(tree)
+
     connect_milvus()
     driver = connect_neo4j()
-
-
-if __name__ == "__main__":
-    main()
