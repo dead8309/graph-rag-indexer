@@ -1,7 +1,20 @@
 import os
-from typing import Tuple
-from tree_sitter import Language, Node, Parser
+from typing import Any, Dict, Set, Tuple
+from tree_sitter import Language, Node, Parser, Query
 from tree_sitter_javascript import language
+import src.config as config
+import json
+
+JS_BUILTINS = [
+    "console",
+    "Object",
+    "Array",
+    "Promise",
+    "this",
+    "Math",
+    "process",
+    "Buffer",
+]
 
 
 class JavaScriptParser:
@@ -11,29 +24,42 @@ class JavaScriptParser:
         try:
             JS_LANGUAGE = Language(language())
             if not JS_LANGUAGE:
-                raise Exception("failed to load language")
+                raise RuntimeError("failed to load language")
 
             self._language = JS_LANGUAGE
             self._parser = Parser(self._language)
-            print(f"javascript parser initialized")
+            print(f"JavaScript parser initialized")
+
+            self._compile_queries()
+            print("Queries compiled")
 
         except Exception as e:
-            print("failed to initialize parser:", e)
+            print("failed to initialize parser or queries", e)
             raise
 
-    def parse_file(self, file_path: str) -> Tuple[Node | None, str | None]:
+    def parse_file(
+        self, file_path: str
+    ) -> Tuple[Dict[str, Dict[str, Any]], list[str], list[str], str | None]:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 code_text = f.read()
             code_bytes = bytes(code_text, "utf-8")
             tree = self._parser.parse(code_bytes)
-            return tree.root_node, code_text
+            root_node = tree.root_node
+
+            if root_node:
+                function_data, top_requires, top_calls = self._extract_data_from_node(
+                    root_node, code_text
+                )
+                return function_data, top_requires, top_calls, code_text
+            else:
+                return {}, [], [], code_text
         except FileNotFoundError:
             print(f"file not found: {file_path}")
-            return None, None
+            return {}, [], [], None
         except Exception as e:
             print(f"failed to parse file: {e}")
-            return None, None
+            return {}, [], [], None
 
     def parse_codebase(self, codebase_path: str):
         parsed_files = {}

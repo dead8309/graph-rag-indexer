@@ -17,6 +17,8 @@ NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 # codebase for indexing
 CODEBASE_DIR = os.path.join("samples-typescript", "express-mongodb")
 
+MIN_FUNCTION_LENGTH = 25
+
 if not NEO4J_PASSWORD:
     raise ValueError("NEO4J_PASSWORD is required")
 
