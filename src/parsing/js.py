@@ -65,10 +65,12 @@ class JavaScriptParser:
             print(f"failed to parse file: {e}")
             return {}, [], [], None
 
-    def parse_codebase(self, codebase_path: str):
-        parsed_files = {}
+    def parse_codebase(self, codebase_path: str) -> Dict[str, Dict[str, Any]]:
+        aggregated_snippets: Dict[str, Dict[str, Any]] = {}
+        all_top_level_requires: Dict[str, list[str]] = {}
         file_count = 0
         parsed_count = 0
+        function_count = 0
 
         if not os.path.isdir(codebase_path):
             print(f"directory not found: {codebase_path}")
@@ -81,17 +83,34 @@ class JavaScriptParser:
                     file_path = os.path.join(root, filename)
                     relative_path = os.path.relpath(file_path, codebase_path)
 
-                    root_node, code_text = self.parse_file(file_path)
+                    file_functions_data, top_requires, top_calls, _ = self.parse_file(
+                        file_path
+                    )
 
-                    if root_node and code_text:
+                    if file_functions_data is not None:
                         parsed_count += 1
-                        parsed_files[relative_path] = {
-                            "root_node": root_node,
-                            "code": code_text[:100] + "...",
-                        }
+                        for func_name, func_data in file_functions_data.items():
+                            snippet_id = f"{relative_path}::{func_name}"
+                            aggregated_snippets[snippet_id] = func_data
+                            function_count += 1
 
-        print(f"parsed {parsed_count} out of {file_count} files")
-        return parsed_files
+                    if top_requires:
+                        all_top_level_requires[relative_path] = top_requires
+
+        print(
+            f"codebase scan complete. Found {file_count} '.js' files, sucessfully parsed {parsed_count}."
+        )
+        print(f"Extracted {function_count} function snippets meeting criteria.")
+
+        if all_top_level_requires:
+            print("\nTop level requires:")
+            for file, requires in all_top_level_requires.items():
+                print(f"File: {file} -> Requires: {requires}")
+        else:
+            print("No top level requires found.")
+
+        return aggregated_snippets
+
     def _compile_queries(self):
         _func_query = """
         [
