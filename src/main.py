@@ -74,4 +74,4 @@ if __name__ == "__main__":
     else:
         print("No file data extracted.")
 
-    json.dump(aggregated_snippets, open("aggregated_snippets.json", "w"))
+    json.dump(aggregated_snippets, open("out.json", "w"))

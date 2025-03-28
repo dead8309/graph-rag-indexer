@@ -39,3 +39,4 @@ dist/
 *.dll
 
 volumes/
+out.json
