@@ -149,5 +149,115 @@ class JavaScriptParser:
         )
         """
         self.require_query: Query = self._language.query(_require_query)
+
+    def _extract_data_from_node(
+        self, root_node: Node, code_text: str
+    ) -> Tuple[Dict[str, Dict[str, Any]], list[str], list[str]]:
+        """
+        Extract function definitions, their internal calls, top level require,
+        and top level calls from ast
+
+        Returns:
+            A tuple containing:
+            - function_data: Dict[func_name, {code: str, calls: List[str]}]
+            - top_level_requires: List[str]
+            - top_level_calls: List[str]
+        """
+        functions_data: Dict[str, Dict[str, Any]] = {}
+        processed_functions: Set[Node] = set()
+        top_level_requires: Set[str] = set()
+        top_level_calls: Set[str] = set()
+
+        all_function_captures = self._func_query.captures(root_node)
+        print(f"all_function_captures: {all_function_captures}")
+        if "func.name" in all_function_captures:
+            func_name_nodes = all_function_captures["func.name"]
+
+            for node in func_name_nodes:
+                func_name = node.text.decode("utf-8")
+                func_block_node = node.parent
+                if (
+                    node.parent.type == "member_expression"
+                    and node.parent.parent.type == "assignment_expression"
+                ):
+                    # upto expression statement
+                    func_block_node = node.parent.parent.parent
+
+                # skip already processed functions
+                if not func_block_node or func_block_node in processed_functions:
+                    continue
+
+                func_code = func_block_node.text.decode("utf-8")
+
+                # skip short functions
+                # TODO: recheck this condition, we might also need small functions for indexing purposes
+                # they could help in rag maybe
+                if len(func_code.strip()) < config.MIN_FUNCTION_LENGTH:
+                    continue
+                processed_functions.add(func_block_node)
+
+                internal_calls = []
+                call_captures_in_block = self.call_query.captures(func_block_node)
+                # NOTE: maybe dynamic imports?, will have to check later
+                require_captures_in_block = self.require_query.captures(func_block_node)
+
+                if "call.name" in call_captures_in_block:
+                    for call_node in call_captures_in_block["call.name"]:
+                        call_target = call_node.text.decode("utf-8")
+                        if (
+                            "." not in call_target
+                            or call_target.split(".")[0] not in JS_BUILTINS
+                        ):
+                            internal_calls.append(call_target)
+
+                if "require_path" in require_captures_in_block:
+                    for req_node in require_captures_in_block["require_path"]:
+                        require_module = req_node.text.decode("utf-8").strip("'\"")
+                        internal_calls.append(f"require:{require_module}")
+
+                functions_data[func_name] = {
+                    "code": func_code,
+                    "calls": sorted(list(internal_calls)),
+                }
+
+        top_require_captures = self.require_query.captures(root_node)
+        if "require_path" in top_require_captures:
+            for req_node in top_require_captures["require_path"]:
+                parent = req_node.parent
+                is_already_processed = False
+                while parent:
+                    if parent in processed_functions:
+                        is_already_processed = True
+                        break
+                    parent = parent.parent
+                if not is_already_processed:
+                    top_level_requires.add(req_node.text.decode("utf-8").strip("'\""))
+
+        top_call_captures = self.call_query.captures(root_node)
+        if "call.name" in top_call_captures:
+            for call_node in top_call_captures["call.name"]:
+                parent = call_node.parent
+                is_already_processed = False
+                while parent:
+                    if parent in processed_functions:
+                        is_already_processed = True
+                        break
+                    parent = parent.parent
+
+                if not is_already_processed:
+                    call_target = call_node.text.decode("utf-8")
+                    if (
+                        "." not in call_target
+                        or call_target.split(".")[0] not in JS_BUILTINS
+                    ):
+                        top_level_calls.add(call_target)
+
+        return (
+            functions_data,
+            sorted(list(top_level_requires)),
+            sorted(list(top_level_calls)),
+        )
+
+
 if __name__ == "__main__":
     pass
