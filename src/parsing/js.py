@@ -40,6 +40,9 @@ class JavaScriptParser:
     def parse_file(
         self, file_path: str
     ) -> Tuple[Dict[str, Dict[str, Any]], list[str], list[str], str | None]:
+        """
+        extract functions definitions, their internal calls, top level require
+        """
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 code_text = f.read()
@@ -54,6 +57,7 @@ class JavaScriptParser:
                 return function_data, top_requires, top_calls, code_text
             else:
                 return {}, [], [], code_text
+
         except FileNotFoundError:
             print(f"file not found: {file_path}")
             return {}, [], [], None
