@@ -41,7 +41,7 @@ except Exception as e:
 
 def parse_codebase(path: str = config.CODEBASE_DIR) -> Optional[List[CodeFile]]:
     if not parser:
-        print("  ℹ️ Parser not initialized.")
+        print("parser not initialized.")
         return None
 
     try:
@@ -83,7 +83,7 @@ def populate_vector_store(code_files: List[CodeFile]):
             print(f"error adding snippets to vector store: {e}")
 
 
-def perform_vector_search(vector_store: MilvusStore, query: str) -> List[str]:
+def perform_vector_search(query: str) -> List[str]:
     rag_ids = []
     if not vector_store:
         print("vector store not initialized, skipping search.")
@@ -140,7 +140,7 @@ def main():
     # already populated
     # populate_vector_store(code_files)
     search_query = "create a new product"
-    rag_ids = perform_vector_search(vector_store, search_query)
+    rag_ids = perform_vector_search(search_query)
     if rag_ids:
         print(f"\n  RAG IDs found: {rag_ids}")
     else:
