@@ -1,7 +1,6 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
-from neo4j import GraphDatabase
 
 from src import config
 from src.parsing.js import JavaScriptParser
@@ -38,23 +37,6 @@ try:
     print("Vector Store Initialized (will connect on first use).")
 except Exception as e:
     print(f"failed to initialize: {e}")
-
-
-def connect_neo4j():
-    driver = None
-    try:
-        if not config.NEO4J_PASSWORD:
-            raise ValueError("NEO4J_PASSWORD is required")
-
-        driver = GraphDatabase.driver(
-            config.NEO4J_URI,
-            auth=(config.NEO4J_USER, config.NEO4J_PASSWORD),
-        )
-        driver.verify_connectivity()
-        print("neo4j connected")
-        return driver
-    except Exception as e:
-        print("failed to connect to neo4j:", e)
 
 
 def parse_codebase(path: str = config.CODEBASE_DIR) -> Optional[List[CodeFile]]:
