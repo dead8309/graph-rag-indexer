@@ -6,8 +6,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "langchain>=0.3.21",
-    "langchain-community>=0.3.20",
     "langchain-google-genai>=2.1.2",
+    "langchain-milvus>=0.1.8",
     "langchain-openai>=0.3.11",
     "neo4j>=5.28.1",
     "pydantic>=2.11.1",
