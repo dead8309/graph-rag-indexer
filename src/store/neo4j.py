@@ -7,6 +7,18 @@ from typing import List, Optional, cast
 from src.parsing.models import CodeFile
 
 
+L_CODE_FILE = "CodeFile"
+L_FUNCTION = "Function"
+L_MODULE = "Module"
+L_VARIABLE = "Variable"
+
+R_CONTAINS = "CONTAINS"
+R_CALLS = "CALLS"
+R_REQUIRES = "REQUIRES"
+R_DEFINES_VAR = "DEFINES_VAR"
+R_USES_VAR = "USES_VAR"
+
+
 class Neo4jStore:
     def __init__(self) -> None:
         self.uri = config.NEO4J_URI
@@ -75,5 +87,21 @@ class Neo4jStore:
         else:
             print("neo4j driver already closed")
 
+    def clear_graph(self):
+        if not self.driver:
+            print("cannot clear graph without driver")
+            return
+
+        confirm = input("delete all data in the graph? (y/n): ")
+        if confirm.lower() != "y":
+            print("aborting clear graph")
+            return
+
+        try:
+            with self.driver.session(database=self.database) as session:
+                session.run("MATCH (n) DETACH DELETE n")
+            print("cleared graph")
         except Exception as e:
+            print("failed to clear graph:", e)
+
         except Exception as e:
