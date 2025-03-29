@@ -9,7 +9,7 @@ parser - NOTE: maybe dynamic imports?, will have to check later
 models - TODO: i'll have to rethink about this, requires can be also called inside functions (lazy loading)
 parser- NOTE: for now we don't filter out small functions
 
-# results
+# Results
 
 ```sh
 --- Performing Vector Search ---
