@@ -134,6 +134,14 @@ class Neo4jStore:
             SET r.variable_name = $var_name, r.line = $line
         """
 
+        merge_internal_call_q = f"""
+            MATCH (caller_fn:{L_FUNCTION} {{ id: $caller_func_id }})
+            MERGE (callee_fn:{L_FUNCTION} {{ id: $target_func_id_guess }})
+            ON CREATE SET callee_fn.name = $target_name
+            MERGE (caller_fn)-[r:{R_CALLS}]->(callee_fn)
+            SET r.line = $line, r.arguments = $args
+        """
+
         for file_data in data:
             tx.run(
                 merge_file_q,
@@ -171,6 +179,17 @@ class Neo4jStore:
                         module_name=req.module_name,
                         var_name=req.variable_name,
                         line=req.position.start_line,
+                    )
+
+                for call in func_data.internal_calls:
+                    target_func_id_guess = f"{file_data.file_path}::{call.name}"
+                    tx.run(
+                        merge_internal_call_q,
+                        caller_func_id=func_id,
+                        target_func_id_guess=target_func_id_guess,
+                        target_name=call.name,
+                        line=call.position.start_line,
+                        args=str(call.arguments[:3]),
                     )
 
             processed_files += 1
