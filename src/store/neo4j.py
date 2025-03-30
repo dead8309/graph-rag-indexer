@@ -104,4 +104,25 @@ class Neo4jStore:
         except Exception as e:
             print("failed to clear graph:", e)
 
+    def _build_graph_tx(self, tx: ManagedTransaction, data: List[CodeFile]):
+        total_files = len(data)
+        processed_files = 0
+
+        merge_file_q = (
+            f"MERGE (f:{L_CODE_FILE} {{path: $path}}) SET f.code_summary = $summary"
+        )
+
+        for file_data in data:
+            tx.run(
+                merge_file_q,
+                path=file_data.file_path,
+                summary=file_data.full_code[:1000] + "...",
+            )
+
+            processed_files += 1
+            if processed_files % 10 == 0 or processed_files == total_files:
+                print(f"  Processed {processed_files}/{total_files} files.")
+
+        print("  Graph building transaction phase complete.")
+
         except Exception as e:
