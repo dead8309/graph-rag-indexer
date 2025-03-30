@@ -217,4 +217,18 @@ class Neo4jStore:
 
         print("  Graph building transaction phase complete.")
 
+    def build_graph_from_files(self, code_files: List[CodeFile]):
+        if not self.driver:
+            print("cannot build graph without driver")
+            return
+
+        start_time = time()
+        try:
+            with self.driver.session(database=self.database) as session:
+                session.execute_write(self._build_graph_tx, code_files)
+            end_time = time()
+            print("graph build transaction complete")
+            print(f"  Time taken: {end_time - start_time:.2f} seconds")
         except Exception as e:
+            print("failed to build graph:", e)
+
