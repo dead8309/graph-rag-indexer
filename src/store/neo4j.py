@@ -127,6 +127,13 @@ class Neo4jStore:
             MERGE (f)-[:{R_CONTAINS}]->(fn)
         """
 
+        merge_internal_req_q = f"""
+            MATCH (fn:{L_FUNCTION} {{ id: $func_id }})
+            MERGE (m:{L_MODULE} {{ name: $module_name }})
+            MERGE (fn)-[r:{R_REQUIRES}]->(m)
+            SET r.variable_name = $var_name, r.line = $line
+        """
+
         for file_data in data:
             tx.run(
                 merge_file_q,
@@ -156,6 +163,15 @@ class Neo4jStore:
                     start_line=func_data.position.start_line,
                     end_line=func_data.position.end_line,
                 )
+
+                for req in func_data.internal_requires:
+                    tx.run(
+                        merge_internal_req_q,
+                        func_id=func_id,
+                        module_name=req.module_name,
+                        var_name=req.variable_name,
+                        line=req.position.start_line,
+                    )
 
             processed_files += 1
             if processed_files % 10 == 0 or processed_files == total_files:
