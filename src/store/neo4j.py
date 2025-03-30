@@ -112,12 +112,28 @@ class Neo4jStore:
             f"MERGE (f:{L_CODE_FILE} {{path: $path}}) SET f.code_summary = $summary"
         )
 
+        merge_top_req_q = f"""
+            MATCH (f:{L_CODE_FILE} {{path: $file_path}})
+            MATCH (m:{L_MODULE} {{name: $module_name}})
+            MATCH (f)-[r:{R_REQUIRES}]->(m)
+            SET r.variable_names = $var_name, r.line = $line
+        """
+
         for file_data in data:
             tx.run(
                 merge_file_q,
                 path=file_data.file_path,
                 summary=file_data.full_code[:1000] + "...",
             )
+
+            for req in file_data.top_level_requires:
+                tx.run(
+                    merge_top_req_q,
+                    file_path=file_data.file_path,
+                    module_name=req.module_name,
+                    var_name=req.variable_name,
+                    line=req.position.start_line,
+                )
 
             processed_files += 1
             if processed_files % 10 == 0 or processed_files == total_files:
