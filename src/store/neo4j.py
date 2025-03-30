@@ -142,6 +142,14 @@ class Neo4jStore:
             SET r.line = $line, r.arguments = $args
         """
 
+        merge_top_call_q = f"""
+            MATCH (f:{L_CODE_FILE} {{ path: $file_path }})
+            MERGE (callee_fn:{L_FUNCTION} {{ id: $target_func_id_guess }})
+            ON CREATE SET callee_fn.name = $target_name
+            MERGE (f)-[r:{R_CALLS}]->(callee_fn)
+            SET r.line = $line, r.arguments = $args
+        """
+
         for file_data in data:
             tx.run(
                 merge_file_q,
@@ -191,6 +199,17 @@ class Neo4jStore:
                         line=call.position.start_line,
                         args=str(call.arguments[:3]),
                     )
+
+            for call in file_data.top_level_calls:
+                target_func_id_guess = f"{file_data.file_path}::{call.name}"
+                tx.run(
+                    merge_top_call_q,
+                    file_path=file_data.file_path,
+                    target_func_id_guess=target_func_id_guess,
+                    target_name=call.name,
+                    line=call.position.start_line,
+                    args=str(call.arguments[:3]),
+                )
 
             processed_files += 1
             if processed_files % 10 == 0 or processed_files == total_files:
