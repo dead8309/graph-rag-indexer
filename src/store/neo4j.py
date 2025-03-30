@@ -119,6 +119,14 @@ class Neo4jStore:
             SET r.variable_names = $var_name, r.line = $line
         """
 
+        merge_func_q = f"""
+            MATCH (f:{L_CODE_FILE} {{ path: $file_path }})
+            MERGE (fn:{L_FUNCTION} {{ id: $func_id }})
+            SET fn.name = $name, fn.type = $type, fn.signature = $signature,
+                fn.code_summary = $code_summary, fn.start_line = $start_line, fn.end_line = $end_line
+            MERGE (f)-[:{R_CONTAINS}]->(fn)
+        """
+
         for file_data in data:
             tx.run(
                 merge_file_q,
@@ -133,6 +141,20 @@ class Neo4jStore:
                     module_name=req.module_name,
                     var_name=req.variable_name,
                     line=req.position.start_line,
+                )
+
+            for func_name, func_data in file_data.functions.items():
+                func_id = f"{file_data.file_path}::{func_name}"
+                tx.run(
+                    merge_func_q,
+                    file_path=file_data.file_path,
+                    func_id=func_id,
+                    name=func_name,
+                    type=func_data.function_type,
+                    signature=f"{func_name}({', '.join(func_data.parameters)})",
+                    code_summary=func_data.code_block[:200] + "...",
+                    start_line=func_data.position.start_line,
+                    end_line=func_data.position.end_line,
                 )
 
             processed_files += 1
