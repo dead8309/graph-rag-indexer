@@ -252,6 +252,11 @@ class Neo4jStore:
                 WITH start_fn
                 MATCH p=(start_fn)-[:{R_CALLS}*0..{max_depth}]-(related_fn:{L_FUNCTION})
                 RETURN related_fn.id AS relatedId
+            UNION
+                WITH start_fn
+                MATCH (f:{L_CODE_FILE})-[:{R_CONTAINS}]->(start_fn)
+                MATCH (f)-[:{R_CONTAINS}]->(sibling_fn:{L_FUNCTION})
+                RETURN sibling_fn.id AS relatedId
             }}
         """
         try:
