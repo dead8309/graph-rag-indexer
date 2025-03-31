@@ -232,3 +232,35 @@ class Neo4jStore:
         except Exception as e:
             print("failed to build graph:", e)
 
+    def query_graph_related(
+        self,
+        start_node_ids: List[str],
+        max_depth: int = config.NEO4J_MAX_TRAVERSE_DEPTH,
+    ) -> List[str]:
+        related_ids = set(start_node_ids)
+        if not self.driver:
+            print("cannot query graph without driver")
+            return list(related_ids)
+
+        if not start_node_ids:
+            print("no start node provided")
+            return list(related_ids)
+
+        cypher_query_string = f"""
+            MATCH (start_fn:{L_FUNCTION}) WHERE start_fn.id IN $start_ids
+            CALL {{
+                WITH start_fn
+                MATCH p=(start_fn)-[:{R_CALLS}*0..{max_depth}]-(related_fn:{L_FUNCTION})
+                RETURN related_fn.id AS relatedId
+            }}
+        """
+        try:
+            with self.driver.session(database=self.database) as session:
+                query_obj = Query(cast(LiteralString, cypher_query_string))
+                result = session.run(query_obj, start_ids=start_node_ids)
+                record = result.single()
+        except Exception as e:
+            if "unknown function 'apoc" in str(e).lower():
+                print("apoc library not installed in neo4j, cannot run query")
+
+        return sorted(list(related_ids))
