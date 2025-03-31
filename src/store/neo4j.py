@@ -257,6 +257,12 @@ class Neo4jStore:
                 MATCH (f:{L_CODE_FILE})-[:{R_CONTAINS}]->(start_fn)
                 MATCH (f)-[:{R_CONTAINS}]->(sibling_fn:{L_FUNCTION})
                 RETURN sibling_fn.id AS relatedId
+            UNION
+                 WITH start_fn
+                 MATCH (start_fn)<-[:{R_CONTAINS}]-(f_start:{L_CODE_FILE})
+                 MATCH (f_start)-[:{R_REQUIRES}]->(m:{L_MODULE})
+                 MATCH (f_other)-[:{R_CONTAINS}]->(other_fn:{L_FUNCTION})
+                 RETURN other_fn.id as relatedId
             }}
         """
         try:
