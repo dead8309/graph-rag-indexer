@@ -134,11 +134,17 @@ class Neo4jStore:
         """
 
         merge_func_q = f"""
-            MATCH (f:{L_CODE_FILE} {{ path: $file_path }})
-            MERGE (fn:{L_FUNCTION} {{ id: $func_id }})
-            SET fn.name = $name, fn.type = $type, fn.signature = $signature,
-                fn.code_summary = $code_summary, fn.start_line = $start_line, fn.end_line = $end_line
-            MERGE (f)-[:{R_CONTAINS}]->(fn)
+             MATCH (f:{L_CODE_FILE} {{ path: $file_path }})
+             MERGE (fn:{L_FUNCTION} {{ id: $func_id }})
+             SET fn.name = $name,
+                 fn.type = $type,
+                 fn.signature = $signature,
+                 fn.code_summary = $code_summary,
+                 fn.start_line = $start_line,
+                 fn.end_line = $end_line,
+                 fn.loc = ($end_line - $start_line + 1)
+             MERGE (f)-[r:{R_CONTAINS}]->(fn)
+             SET r.is_top_level = $is_top_level
         """
 
         merge_internal_req_q = f"""
@@ -205,6 +211,7 @@ class Neo4jStore:
                     code_summary=func_data.code_block[:200] + "...",
                     start_line=func_data.position.start_line,
                     end_line=func_data.position.end_line,
+                    is_top_level=False,
                 )
 
                 for req in func_data.internal_requires:
