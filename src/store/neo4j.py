@@ -269,11 +269,14 @@ class Neo4jStore:
                  MATCH (start_fn)-[:{R_REQUIRES}]->(m:{L_MODULE})
                  MATCH (other_node)-[:{R_REQUIRES}]->(m)
                  WHERE other_node:{L_FUNCTION} OR other_node:{L_CODE_FILE}
+                 WITH value WHERE value.fnId IS NOT NULL RETURN value.fnId AS relatedId
+                 WITH other_node WHERE other_node:CodeFile
                  MATCH (other_node)-[:CONTAINS]->(contained_fn:Function)
                  RETURN contained_fn.id as relatedId
             }}
             RETURN COLLECT(DISTINCT relatedId) AS all_related_ids
         """
+
         try:
             with self.driver.session(database=self.database) as session:
                 query_obj = Query(cast(LiteralString, cypher_query_string))
