@@ -269,6 +269,9 @@ class Neo4jStore:
                  MATCH (start_fn)-[:{R_REQUIRES}]->(m:{L_MODULE})
                  MATCH (other_node)-[:{R_REQUIRES}]->(m)
                  WHERE other_node:{L_FUNCTION} OR other_node:{L_CODE_FILE}
+                 CALL apoc.when(other_node:Function,
+                    'RETURN other_node.id AS fnId',
+                    'RETURN NULL AS fnId', {{other_node: other_node}}) YIELD value
                  WITH value WHERE value.fnId IS NOT NULL RETURN value.fnId AS relatedId
                  WITH other_node WHERE other_node:CodeFile
                  MATCH (other_node)-[:CONTAINS]->(contained_fn:Function)
