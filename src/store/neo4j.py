@@ -127,10 +127,16 @@ class Neo4jStore:
         """
 
         merge_top_req_q = f"""
-            MATCH (f:{L_CODE_FILE} {{path: $file_path}})
-            MATCH (m:{L_MODULE} {{name: $module_name}})
-            MATCH (f)-[r:{R_REQUIRES}]->(m)
-            SET r.variable_names = $var_name, r.line = $line
+             MATCH (f:{L_CODE_FILE} {{path: $file_path}})
+             MERGE (m:{L_MODULE} {{name: $module_name}})
+             SET m.is_external = $is_external,
+                 m.is_std_module = $is_std_module
+             MERGE (f)-[r:{R_REQUIRES}]->(m)
+             SET r.variable_name = $var_name,
+                 r.line = $line,
+                 r.import_type = $import_type,
+                 r.is_default_import = $is_default_import,
+                 r.alias = $alias
         """
 
         merge_func_q = f"""
@@ -150,8 +156,12 @@ class Neo4jStore:
         merge_internal_req_q = f"""
             MATCH (fn:{L_FUNCTION} {{ id: $func_id }})
             MERGE (m:{L_MODULE} {{ name: $module_name }})
+            SET m.is_external = $is_external,
+                m.is_std_module = $is_std_module
             MERGE (fn)-[r:{R_REQUIRES}]->(m)
-            SET r.variable_name = $var_name, r.line = $line
+            SET r.variable_name = $var_name,
+                r.line = $line,
+                r.import_type = $import_type,
         """
 
         merge_internal_call_q = f"""
@@ -191,12 +201,21 @@ class Neo4jStore:
             )
 
             for req in file_data.top_level_requires:
+                is_std_module = req.module_name in JS_STD_MODULES
+                is_external = not req.module_name.startswith(".") and not is_std_module
                 tx.run(
                     merge_top_req_q,
                     file_path=file_data.file_path,
                     module_name=req.module_name,
                     var_name=req.variable_name,
                     line=req.position.start_line,
+                    import_type=(
+                        "require" if "require" in file_data.full_code else "import"
+                    ),
+                    is_default_import=req.variable_name is not None,
+                    alias=req.variable_name,
+                    is_external=is_external,
+                    is_std_module=is_std_module,
                 )
 
             for func_name, func_data in file_data.functions.items():
@@ -215,12 +234,20 @@ class Neo4jStore:
                 )
 
                 for req in func_data.internal_requires:
+                    is_std_module = req.module_name in JS_STD_MODULES
+                    is_external = (
+                        not req.module_name.startswith(".") and not is_std_module
+                    )
+
                     tx.run(
                         merge_internal_req_q,
                         func_id=func_id,
                         module_name=req.module_name,
                         var_name=req.variable_name,
                         line=req.position.start_line,
+                        import_type=(
+                            "require" if "require" in func_data.code_block else "import"
+                        ),
                     )
 
                 for call in func_data.internal_calls:
@@ -244,6 +271,20 @@ class Neo4jStore:
                     line=call.position.start_line,
                     args=str(call.arguments[:3]),
                 )
+
+            for req in file_data.top_level_requires:
+                if req.module_name.startswith("."):
+                    dependency_path = self.resolve_local_path(
+                        file_data.file_path, req.module_name
+                    )
+                    if dependency_path:
+                        tx.run(
+                            file_dependencies_q,
+                            file_path=file_data.file_path,
+                            dependency_path=dependency_path,
+                            reason="import",
+                            strength=1.0,
+                        )
 
             processed_files += 1
             if processed_files % 10 == 0 or processed_files == total_files:
