@@ -264,7 +264,15 @@ class Neo4jStore:
                  MATCH (f_other:{L_CODE_FILE})-[:{R_REQUIRES}]->(m)
                  MATCH (f_other)-[:{R_CONTAINS}]->(other_fn:{L_FUNCTION})
                  RETURN other_fn.id as relatedId
+            UNION
+                 WITH start_fn
+                 MATCH (start_fn)-[:{R_REQUIRES}]->(m:{L_MODULE})
+                 MATCH (other_node)-[:{R_REQUIRES}]->(m)
+                 WHERE other_node:{L_FUNCTION} OR other_node:{L_CODE_FILE}
+                 MATCH (other_node)-[:CONTAINS]->(contained_fn:Function)
+                 RETURN contained_fn.id as relatedId
             }}
+            RETURN COLLECT(DISTINCT relatedId) AS all_related_ids
         """
         try:
             with self.driver.session(database=self.database) as session:
