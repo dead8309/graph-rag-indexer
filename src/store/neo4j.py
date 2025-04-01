@@ -285,6 +285,15 @@ class Neo4jStore:
                 query_obj = Query(cast(LiteralString, cypher_query_string))
                 result = session.run(query_obj, start_ids=start_node_ids)
                 record = result.single()
+                if record and record["all_related_ids"]:
+                    found_ids = record["all_related_ids"]
+                    related_ids.update(found_ids)
+                    print(
+                        f"  Graph query found {len(found_ids)} potentially related nodes."
+                    )
+                else:
+                    print("  Graph query returned no additional related nodes.")
+
         except Exception as e:
             if "unknown function 'apoc" in str(e).lower():
                 print("apoc library not installed in neo4j, cannot run query")
