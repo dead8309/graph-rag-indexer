@@ -116,9 +116,15 @@ class Neo4jStore:
         total_files = len(data)
         processed_files = 0
 
-        merge_file_q = (
-            f"MERGE (f:{L_CODE_FILE} {{path: $path}}) SET f.code_summary = $summary"
-        )
+        merge_file_q = f"""
+            MERGE (f:{L_CODE_FILE} {{path: $path}})
+            SET f.code_summary = $summary,
+                f.file_name = $file_name,
+                f.extension = $extension,
+                f.last_modified = $last_modified,
+                f.loc = $loc,
+                f.directory = $directory
+        """
 
         merge_top_req_q = f"""
             MATCH (f:{L_CODE_FILE} {{path: $file_path}})
@@ -159,10 +165,23 @@ class Neo4jStore:
         """
 
         for file_data in data:
+            path_parts = file_data.file_path.split("/")
+            file_name = path_parts[-1] if path_parts else ""
+            extension = ""
+            if "." in file_name:
+                extension_parts = file_name.split(".")
+                extension = extension_parts[-1] if extension_parts else ""
+            directory = "/".join(path_parts[:-1]) if len(path_parts) > 1 else ""
+
             tx.run(
                 merge_file_q,
                 path=file_data.file_path,
-                summary=file_data.full_code[:1000] + "...",
+                summary=file_data.full_code,
+                file_name=file_name,
+                extension=extension,
+                last_modified=None,
+                loc=len(file_data.full_code.splitlines()),
+                directory=directory,
             )
 
             for req in file_data.top_level_requires:
