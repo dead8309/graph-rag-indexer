@@ -6,6 +6,7 @@ from src import config
 from src.parsing.js import JavaScriptParser
 from src.parsing.models import CodeFile
 from src.store.milvus import MilvusStore
+from src.store.neo4j import Neo4jStore
 
 import json
 
@@ -17,6 +18,7 @@ load_dotenv()
 parser = None
 embedder = None
 vector_store = None
+graph_store = None
 
 
 try:
@@ -35,6 +37,13 @@ try:
 
     vector_store = MilvusStore(embedding_function=embedder)
     print("Vector Store Initialized (will connect on first use).")
+
+    graph_store = Neo4jStore()
+    graph_store.connect()
+    if graph_store.driver:
+        print("Neo4j Graph Store Connected.")
+    else:
+        print("Neo4j Graph Store Connection Failed.")
 except Exception as e:
     print(f"failed to initialize: {e}")
 
@@ -109,6 +118,21 @@ def perform_vector_search(query: str) -> List[str]:
     except Exception as e:
         print(f"error during vector search: {e}")
         return []
+
+
+def build_knowledge_graph(code_files: List[CodeFile], clear_existing: bool = False):
+    if not graph_store:
+        print("graph store not initialized, skipping graph build.")
+        return
+
+    if not code_files:
+        print("no code files data to build graph.")
+        return
+
+    if clear_existing:
+        graph_store.clear_graph()
+
+    graph_store.build_graph_from_files(code_files)
 
 
 def main():

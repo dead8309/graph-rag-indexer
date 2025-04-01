@@ -1,5 +1,7 @@
+import os
 from time import time
 from typing_extensions import LiteralString
+from src.parsing.js import JS_BUILTINS, JS_STD_MODULES
 import src.config as config
 from neo4j import Driver, GraphDatabase, ManagedTransaction, Query
 from typing import List, Optional, cast
@@ -8,15 +10,18 @@ from src.parsing.models import CodeFile
 
 
 L_CODE_FILE = "CodeFile"
-L_FUNCTION = "Function"
-L_MODULE = "Module"
-L_VARIABLE = "Variable"
+L_FUNCTION = "Functions"
+L_MODULE = "Modules"
+L_VARIABLE = "Variables"
+L_PARAMETER = "Parameter"
 
 R_CONTAINS = "CONTAINS"
 R_CALLS = "CALLS"
 R_REQUIRES = "REQUIRES"
 R_DEFINES_VAR = "DEFINES_VAR"
 R_USES_VAR = "USES_VAR"
+R_PARAMETER = "HAS_PARAMETER"
+R_DEPENDS_ON = "DEPENDS_ON"
 
 
 class Neo4jStore:
@@ -64,6 +69,9 @@ class Neo4jStore:
             ),
             Query(
                 f"CREATE CONSTRAINT unique_module_name IF NOT EXISTS FOR (m:{L_MODULE}) REQUIRE m.name IS UNIQUE"
+            ),
+            Query(
+                f"CREATE CONSTRAINT unique_var_name IF NOT EXISTS FOR (v:{L_VARIABLE}) REQUIRE v.id IS UNIQUE"
             ),
         ]
         try:
