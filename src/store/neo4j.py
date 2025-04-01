@@ -153,6 +153,17 @@ class Neo4jStore:
              SET r.is_top_level = $is_top_level
         """
 
+        merge_param_q = f"""
+            MATCH (fn:{L_FUNCTION} {{ id: $func_id }})
+            MERGE (p:{L_PARAMETER} {{ id: $param_id }})
+            SET p.name = $param_name,
+                p.position = $position,
+                p.default_value = $default_value,
+                p.is_rest = $is_rest
+            MERGE (fn)-[r:{R_PARAMETER}]->(p)
+            SET r.index = $index
+    """
+
         merge_internal_req_q = f"""
             MATCH (fn:{L_FUNCTION} {{ id: $func_id }})
             MERGE (m:{L_MODULE} {{ name: $module_name }})
@@ -232,6 +243,28 @@ class Neo4jStore:
                     end_line=func_data.position.end_line,
                     is_top_level=False,
                 )
+
+                for idx, param in enumerate(func_data.parameters):
+                    param_id = f"{func_id}::param::{param}"
+                    param_name = param.lstrip("...")
+                    is_rest = param.startswith("...")
+                    default_value = None
+                    if "=" in param:
+                        param_paths = param.split("=")
+                        if len(param_paths) > 1:
+                            default_value = param_paths[1].strip()
+                        param_name = param.split("=")[0].strip().lstrip("...")
+
+                    tx.run(
+                        merge_param_q,
+                        func_id=func_id,
+                        param_id=param_id,
+                        param_name=param_name,
+                        position=idx,
+                        default_value=default_value,
+                        is_rest=is_rest,
+                        index=idx,
+                    )
 
                 for req in func_data.internal_requires:
                     is_std_module = req.module_name in JS_STD_MODULES
