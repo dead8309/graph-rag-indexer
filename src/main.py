@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
 
@@ -135,24 +135,35 @@ def build_knowledge_graph(code_files: List[CodeFile], clear_existing: bool = Fal
     graph_store.build_graph_from_files(code_files)
 
 
-def perform_graph_rag_query(rag_ids: List[str]) -> Tuple[List[str], List[str]]:
-    combined_results = []
+def perform_graph_rag_query(
+    rag_ids: List[str],
+) -> Tuple[List[str], List[Dict[str, Any]]]:
 
-    graph_expanded_ids = []
+    graph_traversal_res: List[Dict[str, Any]] = []
+    print(f"\n--- Performing Graph Retrieval ---")
     if rag_ids and graph_store:
-        graph_expanded_ids = graph_store.query_graph_related(rag_ids)
-        print(f"\n Graph traversal results: {graph_expanded_ids}")
-        print(f"found {len(graph_expanded_ids)} related nodes in graph.")
+        graph_traversal_res = graph_store.query_graph_related(rag_ids)
+        print(f"found {len(graph_traversal_res)} related nodes in graph.")
     elif not rag_ids:
         print("no RAG IDs found to query graph.")
     else:
         print("graph store not initialized, skipping query.")
-        graph_expanded_ids = rag_ids  # fallback to vector results
+        return rag_ids, []
 
-    combined_results = sorted(list(set(rag_ids) | set(graph_expanded_ids)))
-    print(f"combined unique results: {len(combined_results)}")
+    combined_data_dict: Dict[str, Dict[str, Any]] = {}
+    for res in graph_traversal_res:
+        node_id = res["id"]
+        if node_id in combined_data_dict:
+            combined_data_dict[node_id].update(res)
+            combined_data_dict[node_id]["source"] = "vector_search + graph_traversal"
+        else:
+            combined_data_dict[node_id] = res
 
-    return rag_ids, combined_results
+    combined_results_list = sorted(
+        list(combined_data_dict.values()),
+        key=lambda x: (x.get("file_path", ""), x.get("start_line", 0)),
+    )
+    return rag_ids, combined_results_list
 
 
 def main():
@@ -193,19 +204,21 @@ def main():
     else:
         print("no RAG IDs found.")
 
-    _, graphrag_combined_ids = perform_graph_rag_query(rag_ids)
-    print(f"combined results: {graphrag_combined_ids}")
-    if not graphrag_combined_ids:
+    _, graphrag_res = perform_graph_rag_query(rag_ids)
+    if not graphrag_res:
         print("no combined results found.")
-    else:
-        added_by_graph = set(graphrag_combined_ids) - set(rag_ids)
-        print(f"added by graph traversal: {len(added_by_graph)}")
-        for res_id in graphrag_combined_ids:
-            marker = "(from graph)" if res_id in added_by_graph else ""
-            print(f"- {res_id} {marker}")
 
-    if graph_store:
-        graph_store.close()
+    for i, res in enumerate(graphrag_res):
+        print(f"ID : {res.get('id')}")
+        print(f"Name: {res.get('name', 'N/A')}")
+        print(f"Type: {res.get('type')}")
+        print(f"Function Signature: {res.get('signature')}")
+        print(f"Start Line: {res.get('start_line', 'N/A')}")
+        print(f"End Line: {res.get('end_line', 'N/A')}")
+        print(f"LOC: {res.get('loc', 'N/A')}")
+        print(f"File: {res.get('file_path', 'N/A')}:{res.get('start_line', 'N/A')}")
+        print(f"Code: {res.get('code_summary')}")
+        print("-" * 80)
 
 
 if __name__ == "__main__":

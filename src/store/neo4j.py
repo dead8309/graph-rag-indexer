@@ -4,7 +4,7 @@ from typing_extensions import LiteralString
 from src.parsing.js import JS_BUILTINS, JS_STD_MODULES
 import src.config as config
 from neo4j import Driver, GraphDatabase, ManagedTransaction, Query
-from typing import List, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 
 from src.parsing.models import CodeFile
 
@@ -473,66 +473,74 @@ class Neo4jStore:
         self,
         start_node_ids: List[str],
         max_depth: int = config.NEO4J_MAX_TRAVERSE_DEPTH,
-    ) -> List[str]:
-        related_ids = set(start_node_ids)
-        if not self.driver:
-            print("cannot query graph without driver")
-            return list(related_ids)
+    ) -> List[Dict[str, Any]]:
+        related_nodes_data: Dict[str, Dict[str, Any]] = {}
 
-        if not start_node_ids:
+        if not self.driver:
+            return list(related_nodes_data.values())
+
+        if not self.driver and start_node_ids:
             print("no start node provided")
-            return list(related_ids)
+            return list(related_nodes_data.values())
 
         cypher_query_string = f"""
             MATCH (start_fn:{L_FUNCTION}) WHERE start_fn.id IN $start_ids
             CALL {{
                 WITH start_fn
                 MATCH p=(start_fn)-[:{R_CALLS}*0..{max_depth}]-(related_fn:{L_FUNCTION})
-                RETURN related_fn.id AS relatedId
+                RETURN related_fn AS related_node
             UNION
                 WITH start_fn
                 MATCH (f:{L_CODE_FILE})-[:{R_CONTAINS}]->(start_fn)
                 MATCH (f)-[:{R_CONTAINS}]->(sibling_fn:{L_FUNCTION})
-                RETURN sibling_fn.id AS relatedId
-            UNION
-                 WITH start_fn
-                 MATCH (start_fn)<-[:{R_CONTAINS}]-(f_start:{L_CODE_FILE})
-                 MATCH (f_start)-[:{R_REQUIRES}]->(m:{L_MODULE})
-                 MATCH (f_other:{L_CODE_FILE})-[:{R_REQUIRES}]->(m)
-                 MATCH (f_other)-[:{R_CONTAINS}]->(other_fn:{L_FUNCTION})
-                 RETURN other_fn.id as relatedId
-            UNION
-                 WITH start_fn
-                 MATCH (start_fn)-[:{R_REQUIRES}]->(m:{L_MODULE})
-                 MATCH (other_node)-[:{R_REQUIRES}]->(m)
-                 WHERE other_node:{L_FUNCTION} OR other_node:{L_CODE_FILE}
-                 CALL apoc.when(other_node:{L_FUNCTION},
-                    'RETURN other_node.id AS fnId',
-                    'RETURN NULL AS fnId', {{other_node: other_node}}) YIELD value
-                 WITH value WHERE value.fnId IS NOT NULL RETURN value.fnId AS relatedId
-                 WITH other_node WHERE other_node:{L_CODE_FILE}
-                 MATCH (other_node)-[:CONTAINS]->(contained_fn:{L_FUNCTION})
-                 RETURN contained_fn.id as relatedId
+                RETURN sibling_fn AS related_node
             }}
-            RETURN COLLECT(DISTINCT relatedId) AS all_related_ids
+            WITH COLLECT(DISTINCT related_node) AS distinct_related_nodes
+            UNWIND distinct_related_nodes AS related_fn
+            MATCH (f_cont:{L_CODE_FILE})-[:{R_CONTAINS}]->(related_fn)
+            RETURN
+                related_fn.id AS id,
+                related_fn.name AS name,
+                related_fn.type AS type,
+                related_fn.signature AS signature,
+                related_fn.code_summary AS code_summary,
+                related_fn.start_line AS start_line,
+                related_fn.end_line AS end_line,
+                related_fn.loc AS loc,
+                f_cont.path AS file_path
         """
 
+        processed_count = 0
         try:
             with self.driver.session(database=self.database) as session:
-                query_obj = Query(cast(LiteralString, cypher_query_string))
-                result = session.run(query_obj, start_ids=start_node_ids)
-                record = result.single()
-                if record and record["all_related_ids"]:
-                    found_ids = record["all_related_ids"]
-                    related_ids.update(found_ids)
-                    print(
-                        f"  Graph query found {len(found_ids)} potentially related nodes."
-                    )
-                else:
-                    print("  Graph query returned no additional related nodes.")
+                result = session.run(
+                    cast(LiteralString, cypher_query_string), start_ids=start_node_ids
+                )
+                for record in result:
+                    node_id = record.get("id")
+                    if node_id and node_id not in related_nodes_data:
+                        related_nodes_data[node_id] = {
+                            "id": node_id,
+                            "name": record.get("name"),
+                            "type": record.get("type"),
+                            "signature": record.get("signature"),
+                            "code_summary": record.get("code_summary"),
+                            "start_line": record.get("start_line"),
+                            "end_line": record.get("end_line"),
+                            "loc": record.get("loc"),
+                            "file_path": record.get("file_path"),
+                            "source": "graph_traversal",
+                        }
+                        processed_count += 1
+
+            print(
+                f"graph query processed details for {processed_count} unique related function nodes."
+            )
 
         except Exception as e:
+            print(f"error during Neo4j graph query for details: {e}")
             if "unknown function 'apoc" in str(e).lower():
-                print("apoc library not installed in neo4j, cannot run query")
+                print("query failed likely due to missing APOC plugin in Neo4j.")
 
-        return sorted(list(related_ids))
+        final_results = list(related_nodes_data.values())
+        return final_results
