@@ -417,7 +417,42 @@ class Neo4jStore:
             if processed_files % 10 == 0 or processed_files == total_files:
                 print(f"  Processed {processed_files}/{total_files} files.")
 
-        print("  Graph building transaction phase complete.")
+            # helper
+            tx.run(
+                f"""
+            MATCH (f1:{L_CODE_FILE})-[:{R_CONTAINS}]->(fn1:{L_FUNCTION})
+            MATCH (fn1)-[c:{R_CALLS}]->(fn2:{L_FUNCTION})<-[:{R_CONTAINS}]-(f2:{L_CODE_FILE})
+            WHERE f1 <> f2
+            MERGE (f1)-[r:{R_DEPENDS_ON}]->(f2)
+            WITH r, count(c) as call_count
+            SET r.strength = coalesce(r.strength, 0) + call_count
+        """
+            )
+
+        print("graph building transaction phase complete.")
+
+    def resolve_local_path(self, base_path: str, relative_path: str):
+        base_dir = os.path.dirname(base_path)
+
+        if relative_path.startswith("./") or relative_path.startswith("../"):
+            raw_path = os.path.normpath(os.path.join(base_dir, relative_path))
+        else:
+            return None
+
+        if not os.path.splitext(raw_path)[1]:
+            for ext in [".js", ".jsx"]:
+                if os.path.exists(raw_path + ext):
+                    return raw_path + ext
+
+            for ext in [".js"]:
+                index_path = os.path.join(raw_path, f"index{ext}")
+                if os.path.exists(index_path):
+                    return index_path
+
+        if os.path.exists(raw_path):
+            return raw_path
+
+        return None
 
     def build_graph_from_files(self, code_files: List[CodeFile]):
         if not self.driver:
