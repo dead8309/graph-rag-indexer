@@ -177,18 +177,28 @@ class Neo4jStore:
 
         merge_internal_call_q = f"""
             MATCH (caller_fn:{L_FUNCTION} {{ id: $caller_func_id }})
-            MERGE (callee_fn:{L_FUNCTION} {{ id: $target_func_id_guess }})
-            ON CREATE SET callee_fn.name = $target_name
+            MERGE (callee_fn:{L_FUNCTION} {{ id: $target_func_id }})
+            ON CREATE SET callee_fn.name = $target_name,
+                          callee_fn.is_external_reference = $is_external_ref
             MERGE (caller_fn)-[r:{R_CALLS}]->(callee_fn)
-            SET r.line = $line, r.arguments = $args
+            SET r.line = $line,
+                r.arguments = $args,
+                r.context = $context,
+                r.call_count = coalesce(r.call_count, 0) + 1
         """
 
         merge_top_call_q = f"""
             MATCH (f:{L_CODE_FILE} {{ path: $file_path }})
-            MERGE (callee_fn:{L_FUNCTION} {{ id: $target_func_id_guess }})
-            ON CREATE SET callee_fn.name = $target_name
+            MERGE (callee_fn:{L_FUNCTION} {{ id: $target_func_id }})
+            ON CREATE SET callee_fn.name = $target_name,
+                          callee_fn.is_external_reference = $is_external_ref
             MERGE (f)-[r:{R_CALLS}]->(callee_fn)
-            SET r.line = $line, r.arguments = $args
+            SET r.line = $line,
+                r.arguments = $args,
+                r.context = 'top-level',
+                r.call_count = coalesce(r.call_count, 0) + 1
+        """
+
         """
 
         for file_data in data:
@@ -284,25 +294,40 @@ class Neo4jStore:
                     )
 
                 for call in func_data.internal_calls:
-                    target_func_id_guess = f"{file_data.file_path}::{call.name}"
+                    target_in_file = call.name in file_data.functions
+                    target_func_id = (
+                        f"{file_data.file_path}::{call.name}"
+                        if target_in_file
+                        else f"external::{call.name}"
+                    )
+
                     tx.run(
                         merge_internal_call_q,
                         caller_func_id=func_id,
-                        target_func_id_guess=target_func_id_guess,
+                        target_func_id=target_func_id,
                         target_name=call.name,
                         line=call.position.start_line,
                         args=str(call.arguments[:3]),
+                        context=func_name,
+                        is_external_ref=not target_in_file,
                     )
 
             for call in file_data.top_level_calls:
-                target_func_id_guess = f"{file_data.file_path}::{call.name}"
+                target_in_file = call.name in file_data.functions
+                target_func_id = (
+                    f"{file_data.file_path}::{call.name}"
+                    if target_in_file
+                    else f"external::{call.name}"
+                )
+
                 tx.run(
                     merge_top_call_q,
                     file_path=file_data.file_path,
-                    target_func_id_guess=target_func_id_guess,
+                    target_func_id=target_func_id,
                     target_name=call.name,
                     line=call.position.start_line,
-                    args=str(call.arguments[:3]),
+                    args=str(call.arguments),
+                    is_external_ref=not target_in_file,
                 )
 
             for req in file_data.top_level_requires:
