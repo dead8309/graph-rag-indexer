@@ -199,6 +199,23 @@ class Neo4jStore:
                 r.call_count = coalesce(r.call_count, 0) + 1
         """
 
+        merge_variable_q = f"""
+            MATCH (container) WHERE elementId(container) = $container_id
+            MERGE (v:{L_VARIABLE} {{ id: $var_id }})
+            SET v.name = $var_name,
+                v.kind = $kind,
+                v.value_summary = $value_summary,
+                v.start_line = $start_line
+            MERGE (container)-[r:{R_DEFINES_VAR}]->(v)
+            SET r.scope = $scope
+        """
+
+        file_dependencies_q = f"""
+            MATCH (f1:{L_CODE_FILE} {{ path: $file_path }})
+            MATCH (f2:{L_CODE_FILE} {{ path: $dependency_path }})
+            MERGE (f1)-[r:{R_DEPENDS_ON}]->(f2)
+            SET r.reason = $reason,
+                r.strength = $strength
         """
 
         for file_data in data:
@@ -312,6 +329,28 @@ class Neo4jStore:
                         is_external_ref=not target_in_file,
                     )
 
+                for var in func_data.internal_variables:
+                    var_id = f"{func_id}::var::{var.name}"
+                    function_node_id_tx = tx.run(
+                        query=f"MATCH (fn:{L_FUNCTION} {{id: $func_id}}) RETURN elementId(fn) AS node_id",
+                        func_id=func_id,
+                    ).single()
+
+                    if not function_node_id_tx:
+                        continue
+
+                    function_node_id = function_node_id_tx["node_id"]
+                    tx.run(
+                        merge_variable_q,
+                        container_id=function_node_id,
+                        var_id=var_id,
+                        var_name=var.name,
+                        kind=var.kind or "let",
+                        value_summary=var.value[:100] if var.value else None,
+                        start_line=var.position.start_line,
+                        scope="function",
+                    )
+
             for call in file_data.top_level_calls:
                 target_in_file = call.name in file_data.functions
                 target_func_id = (
@@ -328,6 +367,36 @@ class Neo4jStore:
                     line=call.position.start_line,
                     args=str(call.arguments),
                     is_external_ref=not target_in_file,
+                )
+
+            for var in file_data.top_level_variables:
+                var_id = f"{file_data.file_path}::var::{var.name}"
+
+                is_exported = False
+                if "module.exports = {" in file_data.full_code:
+                    export_parts = file_data.full_code.split("module.exports = {")
+                    if len(export_parts) > 1:
+                        export_content = export_parts[1].split("}")[0]
+                        is_exported = var.name in export_content
+
+                file_node_id_tx = tx.run(
+                    f"MATCH (f:{L_CODE_FILE} {{path: $file_path}}) RETURN elementId(f) AS node_id",
+                    file_path=file_data.file_path,
+                ).single()
+
+                if not file_node_id_tx:
+                    continue
+
+                tx.run(
+                    merge_variable_q,
+                    container_id=file_node_id_tx["node_id"],
+                    var_id=var_id,
+                    var_name=var.name,
+                    kind=var.kind or "let",
+                    value_summary=var.value[:100] if var.value else None,
+                    start_line=var.position.start_line,
+                    is_exported=is_exported,
+                    scope="global",
                 )
 
             for req in file_data.top_level_requires:
