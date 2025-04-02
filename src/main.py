@@ -135,6 +135,26 @@ def build_knowledge_graph(code_files: List[CodeFile], clear_existing: bool = Fal
     graph_store.build_graph_from_files(code_files)
 
 
+def perform_graph_rag_query(rag_ids: List[str]) -> Tuple[List[str], List[str]]:
+    combined_results = []
+
+    graph_expanded_ids = []
+    if rag_ids and graph_store:
+        graph_expanded_ids = graph_store.query_graph_related(rag_ids)
+        print(f"\n Graph traversal results: {graph_expanded_ids}")
+        print(f"found {len(graph_expanded_ids)} related nodes in graph.")
+    elif not rag_ids:
+        print("no RAG IDs found to query graph.")
+    else:
+        print("graph store not initialized, skipping query.")
+        graph_expanded_ids = rag_ids  # fallback to vector results
+
+    combined_results = sorted(list(set(rag_ids) | set(graph_expanded_ids)))
+    print(f"combined unique results: {len(combined_results)}")
+
+    return rag_ids, combined_results
+
+
 def main():
     if not vector_store:
         print("vector Store not initialized.")
@@ -163,12 +183,29 @@ def main():
 
     # already populated
     # populate_vector_store(code_files)
+
+    build_knowledge_graph(code_files, clear_existing=True)
+
     search_query = "create a new product"
     rag_ids = perform_vector_search(search_query)
     if rag_ids:
         print(f"\n  RAG IDs found: {rag_ids}")
     else:
         print("no RAG IDs found.")
+
+    _, graphrag_combined_ids = perform_graph_rag_query(rag_ids)
+    print(f"combined results: {graphrag_combined_ids}")
+    if not graphrag_combined_ids:
+        print("no combined results found.")
+    else:
+        added_by_graph = set(graphrag_combined_ids) - set(rag_ids)
+        print(f"added by graph traversal: {len(added_by_graph)}")
+        for res_id in graphrag_combined_ids:
+            marker = "(from graph)" if res_id in added_by_graph else ""
+            print(f"- {res_id} {marker}")
+
+    if graph_store:
+        graph_store.close()
 
 
 if __name__ == "__main__":
