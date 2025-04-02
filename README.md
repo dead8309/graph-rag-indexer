@@ -1,5 +1,10 @@
 # grag-indexer
 
+<p align="center">
+  <a href="" rel="noopener">
+ <img width=150px height=150px src="assets/main.png" alt="grag-indexer"></a>
+</p>
+
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -11,6 +16,15 @@ To keep things simple for me to test against oss repositories, I've just added [
 
 1.  **Traditional RAG:** Uses semantic vector search (via OpenAI embeddings stored in Milvus) to find code snippets.
 2.  **GraphRAG:** Traditional RAG by leveraging a code knowledge graph. It first performs a vector search to get initial candidate snippets, then traverses a structural code graph (built in Neo4j) to find related snippets (e.g., functions called by candidates, functions in the same file, functions related via shared dependencies).
+
+## Knowledge Graph
+
+[assets/v1.png](assets/v1.png)
+[assets/v2.png](assets/v2.png)
+[assets/v3.png](assets/v3.png)
+[assets/v4.png](assets/v4.png)
+[assets/v5.png](assets/v5.png)
+[assets/v6.png](assets/v6.png)
 
 ## Stack
 
