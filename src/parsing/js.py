@@ -30,6 +30,8 @@ JS_BUILTINS = [
     "Buffer",
 ]
 
+JS_STD_MODULES = ["fs", "path", "http", "crypto", "os", "util"]
+
 JS_TYPES = [
     "string",
     "number",
