@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="" rel="noopener">
- <img width=150px height=150px src="assets/main.png" alt="grag-indexer"></a>
+ <img width=150px height=150px src="assets/graph.svg" alt="grag-indexer"></a>
 </p>
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
@@ -19,12 +19,12 @@ To keep things simple for me to test against oss repositories, I've just added [
 
 ## Knowledge Graph
 
-![assets/v1.png](assets/v1.png)
-![assets/v2.png](assets/v2.png)
-![assets/v3.png](assets/v3.png)
-![assets/v4.png](assets/v4.png)
-![assets/v5.png](assets/v5.png)
-![assets/v6.png](assets/v6.png)
+![assets/v1.svg](assets/v1.svg)
+![assets/v2.svg](assets/v2.svg)
+![assets/v3.svg](assets/v3.svg)
+![assets/v4.svg](assets/v4.svg)
+![assets/v5.svg](assets/v5.svg)
+![assets/v6.svg](assets/v6.svg)
 
 ## Stack
 
