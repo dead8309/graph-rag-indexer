@@ -19,12 +19,12 @@ To keep things simple for me to test against oss repositories, I've just added [
 
 ## Knowledge Graph
 
-[assets/v1.png](assets/v1.png)
-[assets/v2.png](assets/v2.png)
-[assets/v3.png](assets/v3.png)
-[assets/v4.png](assets/v4.png)
-[assets/v5.png](assets/v5.png)
-[assets/v6.png](assets/v6.png)
+![assets/v1.png](assets/v1.png)
+![assets/v2.png](assets/v2.png)
+![assets/v3.png](assets/v3.png)
+![assets/v4.png](assets/v4.png)
+![assets/v5.png](assets/v5.png)
+![assets/v6.png](assets/v6.png)
 
 ## Stack
 
